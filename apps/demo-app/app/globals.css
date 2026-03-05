@@ -1,0 +1,45 @@
+:root {
+  --bg: #0a0a0a;
+  --fg: #ededed;
+  --muted: #888;
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --surface: #1a1a1a;
+  --border: #2a2a2a;
+  --success: #22c55e;
+  --danger: #ef4444;
+  --radius: 8px;
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.5;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: var(--radius);
+  padding: 8px 16px;
+  font-size: 14px;
+  transition: background 0.15s;
+}
+
+input {
+  font-family: inherit;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  color: var(--fg);
+  font-size: 14px;
+  outline: none;
+}
+input:focus { border-color: var(--accent); }
