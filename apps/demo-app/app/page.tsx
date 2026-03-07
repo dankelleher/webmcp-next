@@ -2,14 +2,21 @@ import { db } from "./db";
 import { StoreFront } from "./components/StoreFront";
 import { ShippingRegions } from "./components/ShippingRegions";
 import { McpPanel } from "./components/McpPanel";
+import { CartDropdown } from "./components/Cart";
+import { CartServer } from "./components/CartServer";
 
-/**
- * Server Component — fetches data from the same `db` that powers
- * the MCP resources (api/products, api/shipping).
- */
+/** Force dynamic rendering so the server component always has fresh data */
+export const dynamic = "force-dynamic";
+
 export default function Home() {
   const products = db.products.findMany();
   const shippingRegions = db.shippingRegions;
+
+  const cartItems = db.cart.items();
+  const cartTotal = cartItems.reduce((sum, item) => {
+    const product = db.products.findById(item.productId);
+    return sum + (product?.price ?? 0) * item.quantity;
+  }, 0);
 
   return (
     <div
@@ -24,18 +31,23 @@ export default function Home() {
       }}
     >
       <main style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 28, fontWeight: 700 }}>next-webmcp demo</h1>
-          <p style={{ color: "var(--muted)", marginTop: 4, fontSize: 14 }}>
-            The UI and MCP tools share the same API routes and data layer
-          </p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+          <div>
+            <h1 style={{ fontSize: 28, fontWeight: 700 }}>next-webmcp demo</h1>
+            <p style={{ color: "var(--muted)", marginTop: 4, fontSize: 14 }}>
+              The UI and MCP tools share the same server actions and data layer
+            </p>
+          </div>
+          <CartDropdown count={cartItems.length} total={cartTotal}>
+            <CartServer />
+          </CartDropdown>
         </div>
 
         <StoreFront products={products} />
         <ShippingRegions regions={shippingRegions} />
       </main>
 
-      <aside style={{ position: "sticky", top: 24 }}>
+      <aside style={{ position: "sticky", top: 24, display: "flex", flexDirection: "column", gap: 16 }}>
         <McpPanel />
       </aside>
     </div>

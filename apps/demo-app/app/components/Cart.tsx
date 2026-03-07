@@ -1,26 +1,15 @@
 "use client";
 
-import { useState } from "react";
-
-interface CartEntry {
-  productId: string;
-  quantity: number;
-  productName: string;
-  price: number;
-  subtotal: number;
-}
-
-interface CartData {
-  items: CartEntry[];
-  total: number;
-}
+import { type ReactNode, useState } from "react";
 
 export const CartDropdown = ({
-  cart,
-  onRemove,
+  count,
+  total,
+  children,
 }: {
-  cart: CartData;
-  onRemove: (productId: string) => void;
+  count: number;
+  total: number;
+  children: ReactNode;
 }) => {
   const [open, setOpen] = useState(false);
 
@@ -40,10 +29,10 @@ export const CartDropdown = ({
         }}
       >
         <span style={{ fontSize: 18 }}>&#128722;</span>
-        <span>{cart.items.length}</span>
-        {cart.total > 0 && (
+        <span>{count}</span>
+        {total > 0 && (
           <span style={{ color: "var(--accent)", fontWeight: 600 }}>
-            ${cart.total.toFixed(2)}
+            ${total.toFixed(2)}
           </span>
         )}
       </button>
@@ -88,67 +77,7 @@ export const CartDropdown = ({
             </button>
           </h3>
 
-          {cart.items.length === 0 ? (
-            <p style={{ fontSize: 13, color: "var(--muted)" }}>Cart is empty</p>
-          ) : (
-            <>
-              <ul
-                style={{
-                  listStyle: "none",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 10,
-                }}
-              >
-                {cart.items.map((item) => (
-                  <li
-                    key={item.productId}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      fontSize: 13,
-                      paddingBottom: 10,
-                      borderBottom: "1px solid var(--border)",
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 500 }}>{item.productName}</div>
-                      <div style={{ color: "var(--muted)", fontSize: 12 }}>
-                        {item.quantity} x ${item.price.toFixed(2)} = $
-                        {item.subtotal.toFixed(2)}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => onRemove(item.productId)}
-                      style={{
-                        background: "transparent",
-                        color: "var(--danger)",
-                        fontSize: 12,
-                        padding: "4px 8px",
-                      }}
-                    >
-                      Remove
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <div
-                style={{
-                  marginTop: 12,
-                  display: "flex",
-                  justifyContent: "space-between",
-                  fontWeight: 600,
-                  fontSize: 14,
-                }}
-              >
-                <span>Total</span>
-                <span style={{ color: "var(--accent)" }}>
-                  ${cart.total.toFixed(2)}
-                </span>
-              </div>
-            </>
-          )}
+          {children}
         </div>
       )}
     </div>

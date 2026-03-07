@@ -1,27 +1,52 @@
 import type { JsonSchema } from "./types.js";
 
 /**
- * Extracts the value of a named export from TypeScript source text.
- * Returns the raw source text of the object literal.
+ * Extracts property assignments like `functionName.tool = { ... }`
+ * or `functionName.resource = { ... }` from source text.
  *
- * e.g. for `export const tool: ToolDefinition = { description: "...", ... };`
- * returns `{ description: "...", ... }`
+ * Returns all matches with the identifier name and the object source.
  */
-export const extractExportObject = (
+export const extractPropertyAssignment = (
   source: string,
-  exportName: string
-): string | undefined => {
-  // Match `export const <name>` followed by optional type annotation, then `=`
+  propName: string
+): Array<{ name: string; objectSource: string }> => {
+  const results: Array<{ name: string; objectSource: string }> = [];
+
+  // Match: <identifier>.<propName> = {
   const pattern = new RegExp(
-    `export\\s+const\\s+${exportName}\\s*(?::[^=]*)?=\\s*`,
+    `(\\w+)\\.${propName}\\s*=\\s*`,
+    "gm"
+  );
+  let match;
+  while ((match = pattern.exec(source)) !== null) {
+    const name = match[1];
+    const searchStart = match.index + match[0].length;
+    const braceIndex = source.indexOf("{", searchStart);
+    if (braceIndex === -1) continue;
+
+    const objectSource = extractBalancedBraces(source, braceIndex);
+    if (objectSource) {
+      results.push({ name, objectSource });
+    }
+  }
+
+  return results;
+};
+
+/**
+ * Checks whether a source file exports a named function (e.g. GET, POST).
+ * Handles `export async function GET()`, `export function GET()`,
+ * and `export const GET =`.
+ */
+export const hasExportedFunction = (
+  source: string,
+  name: string
+): boolean => {
+  const pattern = new RegExp(
+    `export\\s+(?:async\\s+)?(?:function\\s+${name}\\s*\\(|const\\s+${name}\\s*=)`,
     "m"
   );
-  const match = pattern.exec(source);
-  if (!match) return undefined;
-
-  const start = match.index + match[0].length;
-  // Find the matching closing brace
-  return extractBalancedBraces(source, start);
+  return pattern.test(source);
 };
 
 /** Extracts a balanced `{ ... }` block from source starting at the given position */
@@ -44,15 +69,8 @@ const extractBalancedBraces = (
 
 /** Extracts the `description` string from an object literal source */
 export const extractDescription = (objectSource: string): string => {
-  // Match description: "..." or description: '...' or description: `...`
   const match = /description\s*:\s*["'`]([^"'`]*)["'`]/.exec(objectSource);
   return match?.[1] ?? "";
-};
-
-/** Extracts the `mimeType` string from an object literal source */
-export const extractMimeType = (objectSource: string): string => {
-  const match = /mimeType\s*:\s*["'`]([^"'`]*)["'`]/.exec(objectSource);
-  return match?.[1] ?? "application/json";
 };
 
 /**
@@ -60,12 +78,11 @@ export const extractMimeType = (objectSource: string): string => {
  * and converts it to JSON Schema.
  */
 export const parseZodSchema = (objectSource: string): JsonSchema | undefined => {
-  // Find z.object({...}) in the inputSchema value
   const zodMatch = /inputSchema\s*:\s*z\.object\s*\(/.exec(objectSource);
   if (!zodMatch) return undefined;
 
   const schemaStart =
-    zodMatch.index + zodMatch[0].length - 1; // position of the `(`
+    zodMatch.index + zodMatch[0].length - 1;
   const innerBraces = extractAfterParen(objectSource, schemaStart);
   if (!innerBraces) return undefined;
 
@@ -79,7 +96,6 @@ const extractAfterParen = (
 ): string | undefined => {
   if (source[start] !== "(") return undefined;
 
-  // Find the `{` after `(`
   let i = start + 1;
   while (i < source.length && source[i] !== "{") i++;
   return extractBalancedBraces(source, i);
@@ -90,10 +106,8 @@ const parseZodObjectInner = (inner: string): JsonSchema => {
   const properties: JsonSchema["properties"] = {};
   const required: string[] = [];
 
-  // Strip outer braces
   const content = inner.slice(1, -1).trim();
 
-  // Match patterns like: propertyName: z.string().describe("...")
   const propPattern =
     /(\w+)\s*:\s*z\.(\w+)\(\)([^,}]*)/g;
   let match;
@@ -139,21 +153,19 @@ export const parseInlineJsonSchema = (
   if (!schemaMatch) return undefined;
 
   const start =
-    schemaMatch.index + schemaMatch[0].length - 1; // position of `{`
+    schemaMatch.index + schemaMatch[0].length - 1;
   const schemaSource = extractBalancedBraces(objectSource, start);
   if (!schemaSource) return undefined;
 
-  // Convert JS object literal to JSON-ish string
   const jsonish = schemaSource
-    .replace(/(\w+)\s*:/g, '"$1":') // quote keys
-    .replace(/'/g, '"') // single to double quotes
-    .replace(/,\s*(}|])/g, "$1") // trailing commas
+    .replace(/(\w+)\s*:/g, '"$1":')
+    .replace(/'/g, '"')
+    .replace(/,\s*(}|])/g, "$1")
     .replace(/\bundefined\b/g, "null");
 
   try {
     return JSON.parse(jsonish) as JsonSchema;
   } catch {
-    // Fallback: return a minimal schema
     return { type: "object", properties: {} };
   }
 };
@@ -170,27 +182,52 @@ export const extractInputSchema = (objectSource: string): JsonSchema => {
 };
 
 /**
- * Determines whether a resource's `data` field is a function (dynamic) or a value (static).
- * Also extracts parameter names from function signatures.
+ * Extracts a Zod schema from a builder chain method call like
+ * `.inputSchema(z.object({...}))` (next-safe-action) or
+ * `.body(z.object({...}))` (next-zod-route).
+ *
+ * Searches for the first matching method call and returns its JSON Schema.
  */
-export const analyzeResourceData = (
-  objectSource: string
-): { isFunction: boolean; paramNames: string[] } => {
-  // Check for arrow function or async function patterns in data field
-  const funcMatch =
-    /data\s*:\s*(?:async\s+)?\(([^)]*)\)\s*=>/.exec(objectSource) ??
-    /data\s*:\s*(?:async\s+)?function\s*\(([^)]*)\)/.exec(objectSource);
+export const extractChainedSchema = (source: string): JsonSchema | undefined => {
+  // Try each known schema method: .inputSchema(), .body(), .query(), .params()
+  const methods = ["inputSchema", "body", "query", "params"];
+  const schemas: JsonSchema[] = [];
 
-  if (!funcMatch) return { isFunction: false, paramNames: [] };
+  for (const method of methods) {
+    const pattern = new RegExp(`\\.${method}\\s*\\(\\s*z\\.object\\s*\\(`);
+    const match = pattern.exec(source);
+    if (!match) continue;
 
-  const params = funcMatch[1].trim();
-  if (!params) return { isFunction: true, paramNames: [] };
+    const zObjectStart = source.indexOf("z.object(", match.index);
+    if (zObjectStart === -1) continue;
 
-  // Extract param names (strip type annotations)
-  const paramNames = params
-    .split(",")
-    .map((p) => p.trim().split(/\s*[:.?]/)[0].trim())
-    .filter(Boolean);
+    const parenStart = zObjectStart + "z.object".length;
+    const innerBraces = extractAfterParen(source, parenStart);
+    if (!innerBraces) continue;
 
-  return { isFunction: true, paramNames };
+    const schema = parseZodObjectInner(innerBraces);
+    schemas.push(schema);
+  }
+
+  if (schemas.length === 0) return undefined;
+  if (schemas.length === 1) return schemas[0];
+
+  // Merge multiple schemas (e.g. .body() + .query()) into one
+  const merged: JsonSchema = { type: "object", properties: {} };
+  const required: string[] = [];
+  for (const schema of schemas) {
+    Object.assign(merged.properties, schema.properties);
+    if (schema.required) required.push(...schema.required);
+  }
+  if (required.length > 0) merged.required = required;
+  return merged;
+};
+
+/**
+ * Extracts the description from a `.use(mcp({ description: "..." }))` call
+ * in a safe-action builder chain.
+ */
+export const extractMcpMiddlewareDescription = (source: string): string => {
+  const match = /\.use\s*\(\s*mcp\s*\(\s*\{[^}]*description\s*:\s*["'`]([^"'`]*)["'`]/.exec(source);
+  return match?.[1] ?? "";
 };

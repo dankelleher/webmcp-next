@@ -50,8 +50,20 @@ const waitForModelContext = (): Promise<ModelContext> =>
 
 /** Builds an execute function for a tool that proxies to its API route */
 const createToolExecutor =
-  (tool: DiscoveredTool) =>
+  (tool: DiscoveredTool, manifestPath: string) =>
   async (inputs: Record<string, string>) => {
+    // Action tools POST to the manifest endpoint with name + input
+    if (tool.kind === "action") {
+      const res = await fetch(manifestPath, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: tool.name, input: inputs }),
+      });
+      const data = await res.json();
+      return { content: [{ type: "text" as const, text: JSON.stringify(data) }] };
+    }
+
+    // Route tools POST directly to their API route
     const res = await fetch(tool.routePath, {
       method: tool.method,
       headers: { "Content-Type": "application/json" },
@@ -98,13 +110,13 @@ const buildResourceInputSchema = (resource: DiscoveredResource) => {
 };
 
 /** Registers all tools and resources from the manifest with navigator.modelContext */
-const registerManifest = (mc: ModelContext, manifest: MCPManifest) => {
+const registerManifest = (mc: ModelContext, manifest: MCPManifest, manifestPath: string) => {
   for (const tool of manifest.tools) {
     mc.registerTool({
       name: tool.name,
       description: tool.description,
       inputSchema: tool.inputSchema,
-      execute: createToolExecutor(tool),
+      execute: createToolExecutor(tool, manifestPath),
     });
   }
 
@@ -145,7 +157,7 @@ export const WebMCPScript = ({
       const res = await fetch(manifestPath);
       const manifest: MCPManifest = await res.json();
       const mc = await waitForModelContext();
-      registerManifest(mc, manifest);
+      registerManifest(mc, manifest, manifestPath);
     })();
   }, [manifestPath]);
 

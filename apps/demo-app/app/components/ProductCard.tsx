@@ -1,14 +1,7 @@
-"use client";
-
 import type { Product } from "../db";
+import { addToCartForm } from "../actions/cart";
 
-export const ProductCard = ({
-  product,
-  onAddToCart,
-}: {
-  product: Product;
-  onAddToCart: (productId: string) => void;
-}) => (
+export const ProductCard = ({ product }: { product: Product }) => (
   <div
     style={{
       background: "var(--surface)",
@@ -41,16 +34,19 @@ export const ProductCard = ({
       <span style={{ fontSize: 13, color: product.inStock ? "var(--success)" : "var(--danger)" }}>
         {product.inStock ? "In stock" : "Out of stock"}
       </span>
-      <button
-        onClick={() => onAddToCart(product.id)}
-        disabled={!product.inStock}
-        style={{
-          background: product.inStock ? "var(--accent)" : "var(--border)",
-          color: product.inStock ? "#fff" : "var(--muted)",
-        }}
-      >
-        Add to cart
-      </button>
+      <form action={addToCartForm}>
+        <input type="hidden" name="productId" value={product.id} />
+        <button
+          type="submit"
+          disabled={!product.inStock}
+          style={{
+            background: product.inStock ? "var(--accent)" : "var(--border)",
+            color: product.inStock ? "#fff" : "var(--muted)",
+          }}
+        >
+          Add to cart
+        </button>
+      </form>
     </div>
   </div>
 );

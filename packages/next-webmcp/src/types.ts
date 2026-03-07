@@ -15,31 +15,31 @@ export interface JsonSchema {
   required?: readonly string[];
 }
 
-/** Tool definition exported from an API route via `export const tool = { ... }` */
+/** Tool metadata attached to a function via `fn.tool = { ... }` */
 export interface ToolDefinition {
   description: string;
   inputSchema: JsonSchema | ZodType;
 }
 
-/**
- * Resource definition exported from a route via `export const resource = { ... }`
- * - Static: `data` is a plain value
- * - Dynamic: `data` is an async function whose params match the route's dynamic segments
- */
-export interface ResourceDefinition<T = unknown> {
+/** Resource metadata attached to a function via `fn.resource = { ... }` */
+export interface ResourceDefinition {
   description: string;
   mimeType?: string;
-  data: T | ((...args: string[]) => T | Promise<T>);
+  data?: unknown;
 }
 
 /** Configuration for the withWebMCP Next.js plugin */
 export interface WebMCPConfig {
   /**
-   * Optional glob patterns to filter which routes are exposed.
-   * If omitted, all routes with `export const tool` or `export const resource` are exposed.
-   * Supports glob patterns like '/api/cart/**'
+   * Optional glob patterns to include. If omitted, all routes are included.
+   * Supports glob patterns like '/api/products/**'
    */
   paths?: string[];
+  /**
+   * Optional glob patterns to exclude from discovery.
+   * Supports glob patterns like '/api/mcp/**'
+   */
+  exclude?: string[];
 }
 
 /** Internal representation of a discovered tool */
@@ -49,6 +49,14 @@ export interface DiscoveredTool {
   inputSchema: JsonSchema;
   routePath: string;
   method: string;
+  /** "route" for API routes, "action" for server actions */
+  kind: "route" | "action";
+  /** How the action expects its input: "object" for safe-actions, "formData" for plain server actions */
+  callStyle?: "object" | "formData";
+  /** Absolute path to the source file (action tools only, not serialized to manifest) */
+  sourceFile?: string;
+  /** Export name in the source file (action tools only, not serialized to manifest) */
+  exportName?: string;
 }
 
 /** Internal representation of a discovered resource */
