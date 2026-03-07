@@ -43,13 +43,15 @@ export default function Layout({ children }) {
 }
 ```
 
-Done. Every annotated route and server action in your app is now available to AI agents via `navigator.modelContext`.
+Done. Your API routes and server actions are automatically exposed to AI agents via `navigator.modelContext` — POST handlers become tools, GET handlers become resources.
 
-## Annotating your code
+## Adding descriptions and schemas
+
+Routes and actions work out of the box, but you can add metadata to help agents understand what they do.
 
 ### API route tools (POST handlers)
 
-Attach `.tool` to any POST handler to expose it as an MCP tool:
+POST handlers are auto-discovered as tools. Add `.tool` for a description and input schema:
 
 ```ts
 // app/api/products/search/route.ts
@@ -61,6 +63,7 @@ export async function POST(req: Request) {
   return Response.json({ results });
 }
 
+// Optional — improves agent understanding
 POST.tool = {
   description: "Search products by keyword",
   inputSchema: z.object({
@@ -71,7 +74,7 @@ POST.tool = {
 
 ### API route resources (GET handlers)
 
-Attach `.resource` to a GET handler to expose data as an MCP resource:
+GET handlers are auto-discovered as resources. Add `.resource` for a description:
 
 ```ts
 // app/api/products/route.ts
@@ -94,9 +97,33 @@ export async function GET(req, { params }) {
 GET.resource = { description: "Products filtered by category" };
 ```
 
+### Server component resources
+
+Server components can expose their data as MCP resources via `.resource` with a `data` function:
+
+```ts
+// app/components/CartServer.tsx
+export const cartData = () => {
+  const items = db.cart.items();
+  return { items, total: items.reduce((s, i) => s + i.subtotal, 0) };
+};
+
+export const CartServer = () => {
+  const { items, total } = cartData();
+  return <div>...</div>;
+};
+
+CartServer.resource = {
+  description: "Current shopping cart contents",
+  data: cartData,
+};
+```
+
+The same data function powers both the UI and the agent.
+
 ### Server actions (plain functions)
 
-Attach `.tool` to a server action to expose mutations as MCP tools:
+Server actions with `"use server"` are auto-discovered when they have `.tool` metadata:
 
 ```ts
 // app/actions/cart.ts
@@ -118,7 +145,7 @@ removeFromCart.tool = {
 
 ### Server actions (next-safe-action)
 
-If you use [next-safe-action](https://next-safe-action.dev), wrap your client with `withMCP` and use the `mcp()` middleware to add descriptions:
+If you use [next-safe-action](https://next-safe-action.dev), wrap your client with `withMCP` and use the `mcp()` middleware to add descriptions. The input schema is captured automatically from the chain:
 
 ```ts
 // app/lib/safe-action.ts
@@ -146,22 +173,22 @@ export const addToCart = actionClient
   });
 ```
 
-The schema and description are captured automatically — no separate registration needed.
-
 ## How it works
 
 ```
 Your Next.js App
 +------------------------------------------+
 |                                          |
-|  API routes                              |
-|    POST.tool = { ... }      ──┐          |
-|    GET.resource = { ... }     │ Scanner  |
-|                               │ reads    |
-|  Server actions               ├─source───┤
-|    fn.tool = { ... }          │ files    |
-|    .use(mcp({...}))         ──┘          |
-|                                          |
+|  API routes (auto-discovered)            |
+|    POST handlers ──────────┐  + optional |
+|    GET handlers             │  .tool /   |
+|                             │  .resource |
+|  Server actions             │  metadata  |
+|    "use server" files ──────┤            |
+|                             │  Scanner   |
+|  Server components          │  reads     |
+|    .resource = { data } ───┘  source     |
+|                                files     |
 |              ┌───────────────────┐       |
 |              │  MCP Manifest     │       |
 |              │  /api/mcp/manifest│       |
@@ -177,9 +204,7 @@ Your Next.js App
    (same code)          (same code)
 ```
 
-The `withWebMCP()` plugin scans your source files at build time, extracts tool/resource metadata, and generates a manifest. The `<WebMCPScript />` component fetches this manifest and registers everything with the browser's `navigator.modelContext` API.
-
-Server actions are auto-discovered and wired up — the plugin generates static imports so the manifest endpoint can execute them directly.
+The `withWebMCP()` plugin scans your source files at build time. API routes are auto-discovered — POST handlers become tools, GET handlers become resources. Server actions and component resources are discovered when they have `.tool` or `.resource` metadata. The `<WebMCPScript />` component fetches the manifest and registers everything with `navigator.modelContext`.
 
 ## Input schemas
 
@@ -211,7 +236,7 @@ POST.tool = {
 
 ## Path filtering
 
-By default, all annotated routes are exposed. To limit visibility:
+By default, all routes are exposed. To limit visibility:
 
 ```ts
 export default withWebMCP({
