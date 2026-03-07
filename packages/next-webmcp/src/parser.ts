@@ -223,6 +223,12 @@ export const extractChainedSchema = (source: string): JsonSchema | undefined => 
   return merged;
 };
 
+/** Extracts the identifier referenced by `data:` in an object literal (e.g. `data: cartData` → "cartData") */
+export const extractDataReference = (objectSource: string): string | undefined => {
+  const match = /data\s*:\s*(\w+)/.exec(objectSource);
+  return match?.[1];
+};
+
 /**
  * Extracts the description from a `.use(mcp({ description: "..." }))` call
  * in a safe-action builder chain.

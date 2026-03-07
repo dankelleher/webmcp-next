@@ -10,8 +10,8 @@ import type {
 /** Cached manifest for production (scan once, serve forever) */
 let cachedManifest: MCPManifest | undefined;
 
-/** Cached action registry loaded from the generated module */
-let actionRegistry: Record<string, (...args: any[]) => any> | undefined;
+/** Cached registry loaded from the generated module */
+let registry: Record<string, (...args: any[]) => any> | undefined;
 
 const getManifest = async (): Promise<MCPManifest> => {
   if (!cachedManifest || process.env.NODE_ENV === "development") {
@@ -24,18 +24,19 @@ const getManifest = async (): Promise<MCPManifest> => {
   return cachedManifest;
 };
 
-const getActions = async (): Promise<Record<string, (...args: any[]) => any>> => {
-  if (!actionRegistry) {
+const getRegistry = async (): Promise<Record<string, (...args: any[]) => any>> => {
+  if (!registry) {
     const mod = await import("@webmcp/actions");
-    actionRegistry = mod.actions;
+    registry = mod.actions;
   }
-  return actionRegistry ?? {};
+  return registry ?? {};
 };
 
-/** Strips internal fields (sourceFile, exportName, callStyle) before sending to client */
+/** Strips internal fields before sending to client */
 const toPublicManifest = (manifest: MCPManifest): MCPManifest => ({
   ...manifest,
   tools: manifest.tools.map(({ sourceFile: _s, exportName: _e, callStyle: _c, ...tool }) => tool),
+  resources: manifest.resources.map(({ sourceFile: _s, dataExport: _d, ...resource }) => resource),
 });
 
 /**
@@ -53,25 +54,48 @@ export async function GET(): Promise<Response> {
 }
 
 /**
- * POST handler that executes server actions by name.
- * Actions are loaded from the generated module (static imports via bundler alias).
+ * POST handler that executes server actions and reads component resources.
  *
- * Request body: `{ name: "addToCart", input: { productId: "abc", quantity: 1 } }`
+ * Action call: `{ name: "addToCart", input: { productId: "abc", quantity: 1 } }`
+ * Resource read: `{ type: "resource", name: "cart" }`
  */
 export async function POST(req: Request): Promise<Response> {
   try {
     const manifest = await getManifest();
-    const { name, input } = await req.json();
+    const body = await req.json();
+    const { name, input, type } = body;
 
     if (!name) {
       return Response.json(
-        { error: "Missing action name" },
+        { error: "Missing name" },
         { status: 400 }
       );
     }
 
-    const actions = await getActions();
-    const action = actions[name];
+    const reg = await getRegistry();
+
+    // Component resource read
+    if (type === "resource") {
+      const resourceMeta = manifest.resources.find((r) => r.name === name);
+      if (!resourceMeta?.dataExport) {
+        return Response.json(
+          { error: `Unknown component resource: ${name}` },
+          { status: 404 }
+        );
+      }
+      const dataFn = reg[resourceMeta.dataExport];
+      if (typeof dataFn !== "function") {
+        return Response.json(
+          { error: `Resource data function not found: ${resourceMeta.dataExport}` },
+          { status: 404 }
+        );
+      }
+      const data = await dataFn();
+      return Response.json(data);
+    }
+
+    // Action execution
+    const action = reg[name];
 
     if (typeof action !== "function") {
       return Response.json(

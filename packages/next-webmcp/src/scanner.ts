@@ -1,6 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
 import {
+  extractDataReference,
   extractDescription,
   extractInputSchema,
   extractPropertyAssignment,
@@ -223,6 +224,49 @@ const parseActionFile = async (
 };
 
 /**
+ * Scans a non-route, non-action source file for `.resource` metadata
+ * on exported components or functions.
+ *
+ * Pattern: `ComponentName.resource = { description: "...", data: dataFn }`
+ * where `dataFn` is a named export in the same file.
+ */
+const parseComponentResourceFile = async (
+  filePath: string,
+): Promise<DiscoveredResource[]> => {
+  const source = await readFile(filePath, "utf-8");
+
+  // Skip "use server" files (handled by parseActionFile)
+  if (/^["']use server["']/m.test(source)) return [];
+
+  const resourceAssignments = extractPropertyAssignment(source, "resource");
+  if (resourceAssignments.length === 0) return [];
+
+  const resources: DiscoveredResource[] = [];
+
+  for (const { name: componentName, objectSource } of resourceAssignments) {
+    const description = extractDescription(objectSource);
+    const dataExport = extractDataReference(objectSource);
+    if (!dataExport) continue;
+
+    // Derive a resource name from the data export (e.g. cartData → cart)
+    const resourceName = dataExport.replace(/Data$/, "");
+
+    resources.push({
+      name: resourceName,
+      description,
+      mimeType: "application/json",
+      uriTemplate: resourceName,
+      isTemplate: false,
+      kind: "component",
+      sourceFile: filePath,
+      dataExport,
+    });
+  }
+
+  return resources;
+};
+
+/**
  * Scans the app directory and builds a complete MCP manifest.
  *
  * Route files are auto-discovered — any exported GET becomes a resource,
@@ -248,13 +292,16 @@ export const buildManifest = async (
     resources.push(...parsed.resources);
   }
 
-  // Scan source files for server actions with .tool metadata
+  // Scan source files for server actions and component resources
   const allFiles = await findFiles(appDir, isSourceFile);
   for (const filePath of allFiles) {
     if (isRouteFile(filePath)) continue;
 
     const actionTools = await parseActionFile(filePath);
     tools.push(...actionTools);
+
+    const componentResources = await parseComponentResourceFile(filePath);
+    resources.push(...componentResources);
   }
 
   return { tools, resources };

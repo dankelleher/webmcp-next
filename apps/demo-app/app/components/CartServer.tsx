@@ -9,9 +9,8 @@ export interface CartEntry {
   subtotal: number;
 }
 
-const getCartItems = () => {
-  const items = db.cart.items();
-  return items.map((item) => {
+export const cartData = () => {
+  const items = db.cart.items().map((item) => {
     const product = db.products.findById(item.productId);
     return {
       productId: item.productId,
@@ -21,11 +20,12 @@ const getCartItems = () => {
       subtotal: (product?.price ?? 0) * item.quantity,
     } satisfies CartEntry;
   });
+  const total = items.reduce((sum, item) => sum + item.subtotal, 0);
+  return { items, total };
 };
 
 export const CartServer = () => {
-  const items = getCartItems();
-  const total = items.reduce((sum, item) => sum + item.subtotal, 0);
+  const { items, total } = cartData();
 
   if (items.length === 0) {
     return <p style={{ fontSize: 13, color: "var(--muted)" }}>Cart is empty</p>;
@@ -91,4 +91,9 @@ export const CartServer = () => {
       </div>
     </>
   );
+};
+
+CartServer.resource = {
+  description: "Current shopping cart contents with product details and total",
+  data: cartData,
 };

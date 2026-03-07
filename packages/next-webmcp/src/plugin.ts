@@ -6,10 +6,10 @@ import type { WebMCPConfig } from "./types.js";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 /**
- * Synchronously scans the app directory for "use server" files
- * and finds exported actions (those with .tool = {...} or safe-action chains).
+ * Synchronously scans the app directory for server actions and component
+ * resource data functions that need to be auto-imported.
  */
-const findActionExports = (
+const findAutoImports = (
   appDir: string
 ): Array<{ filePath: string; exportNames: string[] }> => {
   const results: Array<{ filePath: string; exportNames: string[] }> = [];
@@ -24,22 +24,31 @@ const findActionExports = (
         !/route\.(ts|tsx|js|jsx)$/.test(entry.name)
       ) {
         const source = readFileSync(fullPath, "utf-8");
-        if (!/^["']use server["']/m.test(source)) continue;
-
         const exportNames: string[] = [];
 
-        // Pattern 1: fn.tool = { ... }
-        const toolPattern = /(\w+)\.tool\s*=/g;
-        let match;
-        while ((match = toolPattern.exec(source)) !== null) {
-          if (!exportNames.includes(match[1])) exportNames.push(match[1]);
+        // "use server" files: scan for actions
+        if (/^["']use server["']/m.test(source)) {
+          // Pattern 1: fn.tool = { ... }
+          const toolPattern = /(\w+)\.tool\s*=/g;
+          let match;
+          while ((match = toolPattern.exec(source)) !== null) {
+            if (!exportNames.includes(match[1])) exportNames.push(match[1]);
+          }
+
+          // Pattern 2: export const X = actionClient.use(mcp(...)).inputSchema(...).action(...)
+          const chainPattern =
+            /export\s+const\s+(\w+)\s*=\s*\w+\s*[\n\r]*\s*\./g;
+          while ((match = chainPattern.exec(source)) !== null) {
+            if (!exportNames.includes(match[1])) exportNames.push(match[1]);
+          }
         }
 
-        // Pattern 2: export const X = actionClient.use(mcp(...)).inputSchema(...).action(...)
-        const chainPattern =
-          /export\s+const\s+(\w+)\s*=\s*\w+\s*[\n\r]*\s*\./g;
-        while ((match = chainPattern.exec(source)) !== null) {
-          if (!exportNames.includes(match[1])) exportNames.push(match[1]);
+        // Component resource files: scan for .resource = { data: funcName }
+        const resourcePattern = /\w+\.resource\s*=\s*\{[^}]*data\s*:\s*(\w+)/g;
+        let resourceMatch;
+        while ((resourceMatch = resourcePattern.exec(source)) !== null) {
+          const dataFn = resourceMatch[1];
+          if (!exportNames.includes(dataFn)) exportNames.push(dataFn);
         }
 
         if (exportNames.length > 0) {
@@ -58,7 +67,7 @@ const findActionExports = (
  * and exports them as a record. The bundler can resolve these static imports.
  */
 const generateActionsModule = (appDir: string, outputDir: string): string => {
-  const actions = findActionExports(appDir);
+  const actions = findAutoImports(appDir);
   const outputPath = join(outputDir, "actions.js");
 
   mkdirSync(outputDir, { recursive: true });

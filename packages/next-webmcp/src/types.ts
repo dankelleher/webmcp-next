@@ -66,6 +66,12 @@ export interface DiscoveredResource {
   mimeType: string;
   uriTemplate: string;
   isTemplate: boolean;
+  /** "route" for API routes, "component" for server component resources */
+  kind?: "route" | "component";
+  /** Absolute path to the source file (component resources only, not serialized to manifest) */
+  sourceFile?: string;
+  /** Export name of the data function (component resources only, not serialized to manifest) */
+  dataExport?: string;
 }
 
 /** The MCP manifest served at /.well-known/mcp */

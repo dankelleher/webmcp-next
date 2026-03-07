@@ -86,8 +86,20 @@ const extractTemplateParams = (uriTemplate: string): string[] => {
 
 /** Builds an execute function for a resource that fetches its data */
 const createResourceExecutor =
-  (resource: DiscoveredResource) =>
+  (resource: DiscoveredResource, manifestPath: string) =>
   async (inputs: Record<string, string>) => {
+    // Component resources are served via POST to the manifest endpoint
+    if (resource.kind === "component") {
+      const res = await fetch(manifestPath, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "resource", name: resource.name }),
+      });
+      const data = await res.json();
+      return { content: [{ type: "text" as const, text: JSON.stringify(data) }] };
+    }
+
+    // Route resources fetch from their API endpoint
     let uri = resource.uriTemplate;
     for (const param of extractTemplateParams(resource.uriTemplate)) {
       uri = uri.replace(`{${param}}`, encodeURIComponent(inputs[param] ?? ""));
@@ -125,7 +137,7 @@ const registerManifest = (mc: ModelContext, manifest: MCPManifest, manifestPath:
       name: `get_${resource.name}`,
       description: `Get resource: ${resource.description}`,
       inputSchema: buildResourceInputSchema(resource),
-      execute: createResourceExecutor(resource),
+      execute: createResourceExecutor(resource, manifestPath),
     });
   }
 

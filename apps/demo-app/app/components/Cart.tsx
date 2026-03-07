@@ -1,6 +1,7 @@
 "use client";
 
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export const CartDropdown = ({
   count,
@@ -12,6 +13,13 @@ export const CartDropdown = ({
   children: ReactNode;
 }) => {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
+
+  // Poll for cart changes (picks up MCP/curl mutations)
+  useEffect(() => {
+    const interval = setInterval(() => router.refresh(), 2000);
+    return () => clearInterval(interval);
+  }, [router]);
 
   return (
     <div style={{ position: "relative" }}>
