@@ -13,7 +13,17 @@ export interface CartItem {
   quantity: number;
 }
 
-const products: Product[] = [
+/**
+ * Creates a singleton store on globalThis so all server contexts
+ * (route handlers, server components, server actions) share the same state.
+ */
+const createStore = <T>(key: string, init: () => T): T => {
+  const g = globalThis as Record<string, unknown>;
+  if (!g[key]) g[key] = init();
+  return g[key] as T;
+};
+
+const products = createStore<Product[]>("__demo_products", () => [
   { id: "1", name: "Wireless Headphones", category: "electronics", price: 79.99, inStock: true },
   { id: "2", name: "USB-C Cable", category: "electronics", price: 12.99, inStock: true },
   { id: "3", name: "Mechanical Keyboard", category: "electronics", price: 149.99, inStock: false },
@@ -21,9 +31,9 @@ const products: Product[] = [
   { id: "5", name: "Hiking Boots", category: "footwear", price: 189.99, inStock: true },
   { id: "6", name: "Cotton T-Shirt", category: "clothing", price: 24.99, inStock: true },
   { id: "7", name: "Denim Jacket", category: "clothing", price: 89.99, inStock: true },
-];
+]);
 
-const cart: CartItem[] = [];
+const cart = createStore<CartItem[]>("__demo_cart", () => []);
 
 export const db = {
   products: {

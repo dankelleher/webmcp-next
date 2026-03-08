@@ -52,24 +52,29 @@ const waitForModelContext = (): Promise<ModelContext> =>
 const createToolExecutor =
   (tool: DiscoveredTool, manifestPath: string) =>
   async (inputs: Record<string, string>) => {
+    let res: Response;
+
     // Action tools POST to the manifest endpoint with name + input
     if (tool.kind === "action") {
-      const res = await fetch(manifestPath, {
+      res = await fetch(manifestPath, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: tool.name, input: inputs }),
       });
-      const data = await res.json();
-      return { content: [{ type: "text" as const, text: JSON.stringify(data) }] };
+    } else {
+      // Route tools POST directly to their API route
+      res = await fetch(tool.routePath, {
+        method: tool.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(inputs),
+      });
     }
 
-    // Route tools POST directly to their API route
-    const res = await fetch(tool.routePath, {
-      method: tool.method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(inputs),
-    });
     const data = await res.json();
+
+    // Notify the page that a tool was executed (triggers UI refresh)
+    window.dispatchEvent(new CustomEvent("webmcp:tool-executed", { detail: { tool: tool.name } }));
+
     return { content: [{ type: "text" as const, text: JSON.stringify(data) }] };
   };
 

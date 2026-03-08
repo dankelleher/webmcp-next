@@ -38,7 +38,7 @@ export default function Home() {
               The UI and MCP tools share the same server actions and data layer
             </p>
           </div>
-          <CartDropdown count={cartItems.length} total={cartTotal}>
+          <CartDropdown key={`cart-${cartItems.length}-${cartTotal}`} count={cartItems.length} total={cartTotal}>
             <CartServer />
           </CartDropdown>
         </div>

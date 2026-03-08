@@ -15,10 +15,16 @@ export const CartDropdown = ({
   const [open, setOpen] = useState(false);
   const router = useRouter();
 
-  // Poll for cart changes (picks up MCP/curl mutations)
+  // Refresh when MCP tools execute (picks up mutations immediately)
   useEffect(() => {
+    const onToolExecuted = () => router.refresh();
+    window.addEventListener("webmcp:tool-executed", onToolExecuted);
+    // Also poll as fallback for curl/external mutations
     const interval = setInterval(() => router.refresh(), 2000);
-    return () => clearInterval(interval);
+    return () => {
+      window.removeEventListener("webmcp:tool-executed", onToolExecuted);
+      clearInterval(interval);
+    };
   }, [router]);
 
   return (
