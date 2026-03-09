@@ -2,7 +2,7 @@
 
 Turn your Next.js app into an AI-agent-ready website in under a minute. Zero refactoring, no extra backend.
 
-<video src="demo.mov" controls width="100%"></video>
+<video src="demo.mp4" controls width="100%"></video>
 
 ## Quick start
 
