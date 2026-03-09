@@ -1,1 +1,1 @@
-export { GET, POST } from "next-webmcp";
+export { GET, POST } from "webmcp-next";

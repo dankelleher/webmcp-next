@@ -26,20 +26,14 @@ const findAutoImports = (
         const source = readFileSync(fullPath, "utf-8");
         const exportNames: string[] = [];
 
-        // "use server" files: scan for actions
+        // "use server" files: import all exports (all are auto-discovered as tools)
         if (/^["']use server["']/m.test(source)) {
-          // Pattern 1: fn.tool = { ... }
-          const toolPattern = /(\w+)\.tool\s*=/g;
+          const allExportPattern =
+            /export\s+(?:async\s+)?(?:function\s+(\w+)\s*\(|const\s+(\w+)\s*=)/g;
           let match;
-          while ((match = toolPattern.exec(source)) !== null) {
-            if (!exportNames.includes(match[1])) exportNames.push(match[1]);
-          }
-
-          // Pattern 2: export const X = actionClient.use(mcp(...)).inputSchema(...).action(...)
-          const chainPattern =
-            /export\s+const\s+(\w+)\s*=\s*\w+\s*[\n\r]*\s*\./g;
-          while ((match = chainPattern.exec(source)) !== null) {
-            if (!exportNames.includes(match[1])) exportNames.push(match[1]);
+          while ((match = allExportPattern.exec(source)) !== null) {
+            const name = match[1] ?? match[2];
+            if (!exportNames.includes(name)) exportNames.push(name);
           }
         }
 
@@ -117,10 +111,10 @@ export const withWebMCP =
   (nextConfig: NextConfig): NextConfig => {
     const projectRoot = process.cwd();
     const appDir = join(projectRoot, "app");
-    const outputDir = join(projectRoot, ".next-webmcp");
+    const outputDir = join(projectRoot, ".webmcp-next");
     generateActionsModule(appDir, outputDir);
     // Relative path from project root for Turbopack
-    const actionsRelative = "./.next-webmcp/actions.js";
+    const actionsRelative = "./.webmcp-next/actions.js";
 
     return {
       ...nextConfig,

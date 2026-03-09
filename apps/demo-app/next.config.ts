@@ -1,5 +1,5 @@
 import type { NextConfig } from "next";
-import { withWebMCP } from "next-webmcp";
+import { withWebMCP } from "webmcp-next";
 
 const nextConfig: NextConfig = {};
 

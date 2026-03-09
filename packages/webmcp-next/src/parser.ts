@@ -230,6 +230,21 @@ export const extractDataReference = (objectSource: string): string | undefined =
 };
 
 /**
+ * Extracts all exported function and const names from source code.
+ * Matches `export async function X(`, `export function X(`, and `export const X =`.
+ */
+export const extractAllExportNames = (source: string): string[] => {
+  const names: string[] = [];
+  const pattern = /export\s+(?:async\s+)?(?:function\s+(\w+)\s*\(|const\s+(\w+)\s*=)/g;
+  let match;
+  while ((match = pattern.exec(source)) !== null) {
+    const name = match[1] ?? match[2];
+    if (!names.includes(name)) names.push(name);
+  }
+  return names;
+};
+
+/**
  * Extracts the description from a `.use(mcp({ description: "..." }))` call
  * in a safe-action builder chain.
  */

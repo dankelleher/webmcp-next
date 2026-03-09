@@ -1,6 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
 import {
+  extractAllExportNames,
   extractDataReference,
   extractDescription,
   extractInputSchema,
@@ -161,12 +162,12 @@ const parseRouteFile = async (
 };
 
 /**
- * Scans a "use server" file for server actions with MCP metadata.
+ * Scans a "use server" file and auto-discovers all exported functions as tools.
  *
- * Supports two patterns:
+ * Enrichment patterns (optional — adds description and input schema):
  * 1. Explicit: `addToCart.tool = { description: "...", inputSchema: z.object({...}) }`
  * 2. Safe-action chain: `.use(mcp({ description: "..." })).inputSchema(z.object({...})).action(...)`
- *    with `withMCP` — the parser extracts description from mcp() and schema from the chain
+ * 3. All remaining exports become tools with empty description/schema
  */
 const parseActionFile = async (
   filePath: string,
@@ -220,6 +221,24 @@ const parseActionFile = async (
     }
   }
 
+  // Pattern 3: auto-discover all remaining exported functions as tools
+  const allExports = extractAllExportNames(source);
+  for (const exportName of allExports) {
+    if (knownNames.has(exportName)) continue;
+    tools.push({
+      name: exportName,
+      description: "",
+      inputSchema: { type: "object" as const, properties: {} },
+      routePath: `/api/mcp/manifest`,
+      method: "POST",
+      kind: "action",
+      callStyle: "formData",
+      sourceFile: filePath,
+      exportName,
+    });
+    knownNames.add(exportName);
+  }
+
   return tools;
 };
 
@@ -269,8 +288,9 @@ const parseComponentResourceFile = async (
 /**
  * Scans the app directory and builds a complete MCP manifest.
  *
- * Route files are auto-discovered — any exported GET becomes a resource,
- * any exported POST becomes a tool. Server actions need explicit `.tool` metadata.
+ * Everything is auto-discovered: GET handlers become resources, POST handlers
+ * and all "use server" exports become tools. Optional `.tool` / `.resource`
+ * metadata adds descriptions and input schemas.
  */
 export const buildManifest = async (
   appDir: string,

@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { mcp } from "next-webmcp";
+import { mcp } from "webmcp-next";
 import { db } from "../db";
 import { actionClient } from "../lib/safe-action";
 
@@ -46,3 +46,9 @@ removeFromCart.tool = {
     productId: z.string().describe("The product ID to remove"),
   }),
 };
+
+/** Un-annotated action — auto-discovered as a tool without .tool metadata */
+export async function clearCart() {
+  db.cart.clear();
+  revalidatePath("/");
+}

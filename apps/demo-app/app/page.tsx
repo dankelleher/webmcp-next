@@ -33,10 +33,7 @@ export default function Home() {
       <main style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
           <div>
-            <h1 style={{ fontSize: 28, fontWeight: 700 }}>next-webmcp demo</h1>
-            <p style={{ color: "var(--muted)", marginTop: 4, fontSize: 14 }}>
-              The UI and MCP tools share the same server actions and data layer
-            </p>
+            <h1 style={{ fontSize: 28, fontWeight: 700 }}>webmcp-next demo</h1>
           </div>
           <CartDropdown key={`cart-${cartItems.length}-${cartTotal}`} count={cartItems.length} total={cartTotal}>
             <CartServer />

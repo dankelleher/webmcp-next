@@ -128,26 +128,38 @@ const buildResourceInputSchema = (resource: DiscoveredResource) => {
 
 /** Registers all tools and resources from the manifest with navigator.modelContext */
 const registerManifest = (mc: ModelContext, manifest: MCPManifest, manifestPath: string) => {
+  let registered = 0;
+
   for (const tool of manifest.tools) {
-    mc.registerTool({
-      name: tool.name,
-      description: tool.description,
-      inputSchema: tool.inputSchema,
-      execute: createToolExecutor(tool, manifestPath),
-    });
+    try {
+      mc.registerTool({
+        name: tool.name,
+        description: tool.description || tool.name,
+        inputSchema: tool.inputSchema,
+        execute: createToolExecutor(tool, manifestPath),
+      });
+      registered++;
+    } catch (err) {
+      console.warn(`[webmcp-next] Failed to register tool "${tool.name}":`, err);
+    }
   }
 
   for (const resource of manifest.resources) {
-    mc.registerTool({
-      name: `get_${resource.name}`,
-      description: `Get resource: ${resource.description}`,
-      inputSchema: buildResourceInputSchema(resource),
-      execute: createResourceExecutor(resource, manifestPath),
-    });
+    try {
+      mc.registerTool({
+        name: `get_${resource.name}`,
+        description: resource.description || resource.name,
+        inputSchema: buildResourceInputSchema(resource),
+        execute: createResourceExecutor(resource, manifestPath),
+      });
+      registered++;
+    } catch (err) {
+      console.warn(`[webmcp-next] Failed to register resource "${resource.name}":`, err);
+    }
   }
 
   console.log(
-    `[next-webmcp] Registered ${manifest.tools.length} tools and ${manifest.resources.length} resources with navigator.modelContext`
+    `[webmcp-next] Registered ${registered}/${manifest.tools.length + manifest.resources.length} entries with navigator.modelContext`
   );
 };
 
@@ -157,7 +169,7 @@ const registerManifest = (mc: ModelContext, manifest: MCPManifest, manifestPath:
  *
  * Usage:
  * ```tsx
- * import { WebMCPScript } from 'next-webmcp';
+ * import { WebMCPScript } from 'webmcp-next';
  * <WebMCPScript />
  * ```
  */

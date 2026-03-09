@@ -1,4 +1,4 @@
 import { createSafeActionClient } from "next-safe-action";
-import { withMCP } from "next-webmcp";
+import { withMCP } from "webmcp-next";
 
 export const actionClient = withMCP(createSafeActionClient());

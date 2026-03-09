@@ -1,5 +1,5 @@
 {
-  "name": "next-webmcp",
+  "name": "webmcp-next",
   "version": "0.1.0",
   "description": "Next.js plugin for WebMCP - expose API routes, server actions, and data as MCP tools and resources",
   "type": "module",

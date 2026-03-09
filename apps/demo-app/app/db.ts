@@ -65,6 +65,10 @@ export const db = {
       if (index >= 0) cart.splice(index, 1);
       return cart;
     },
+    clear: () => {
+      cart.length = 0;
+      return cart;
+    },
   },
   shippingRegions: ["US", "EU", "UK", "CA", "AU"],
 };

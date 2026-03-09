@@ -4,4 +4,4 @@ dist
 .idea
 *.tsbuildinfo
 pnpm-lock.yaml
-.next-webmcp
+.webmcp-next

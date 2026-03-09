@@ -1,35 +1,35 @@
-# next-webmcp
+# webmcp-next
 
 Turn your Next.js app into an AI-agent-ready website in under a minute. Your existing API routes and server actions automatically become [WebMCP](https://webmcp.dev) tools and resources — zero refactoring, no extra backend.
 
 ```
-npm install next-webmcp
+npm install webmcp-next
 ```
 
 ## How to use it
 
-Three steps. That's it.
+Three steps:
 
 **1. Wrap your Next.js config:**
 
 ```ts
 // next.config.ts
-import { withWebMCP } from "next-webmcp";
+import { withWebMCP } from "webmcp-next";
 export default withWebMCP()(nextConfig);
 ```
 
-**2. Add the manifest route (one line):**
+**2. Add the manifest route:**
 
 ```ts
 // app/api/mcp/manifest/route.ts
-export { GET, POST } from "next-webmcp";
+export { GET, POST } from "webmcp-next";
 ```
 
 **3. Drop in the script component:**
 
 ```tsx
 // app/layout.tsx
-import { WebMCPScript } from "next-webmcp";
+import { WebMCPScript } from "webmcp-next";
 
 export default function Layout({ children }) {
   return (
@@ -43,7 +43,27 @@ export default function Layout({ children }) {
 }
 ```
 
-Done. Your API routes and server actions are automatically exposed to AI agents via `navigator.modelContext` — POST handlers become tools, GET handlers become resources.
+That's it. Your API routes and server actions are automatically exposed to AI agents via `navigator.modelContext` — POST handlers and `"use server"` exports become tools, GET handlers become resources.
+
+## Controlling what's exposed
+
+Since everything is auto-discovered, use path filtering to control visibility:
+
+```ts
+// Only expose specific paths
+export default withWebMCP({
+  paths: ["/api/cart/**", "/api/products/**"],
+})(nextConfig);
+```
+
+```ts
+// Exclude specific paths
+export default withWebMCP({
+  exclude: ["/api/internal/**", "/api/admin/**"],
+})(nextConfig);
+```
+
+By default, all routes and server actions are exposed. The `/api/mcp/**` path is always excluded automatically.
 
 ## Adding descriptions and schemas
 
@@ -63,7 +83,6 @@ export async function POST(req: Request) {
   return Response.json({ results });
 }
 
-// Optional — improves agent understanding
 POST.tool = {
   description: "Search products by keyword",
   inputSchema: z.object({
@@ -97,6 +116,65 @@ export async function GET(req, { params }) {
 GET.resource = { description: "Products filtered by category" };
 ```
 
+### Server actions
+
+All exported functions in `"use server"` files are auto-discovered as tools. Add `.tool` for a description and input schema:
+
+```ts
+// app/actions/cart.ts
+"use server";
+import { z } from "zod";
+
+// Works without .tool — auto-discovered by name
+export async function clearCart() {
+  db.cart.clear();
+}
+
+// .tool adds a description and input schema to help agents
+export async function removeFromCart(formData: FormData) {
+  const productId = formData.get("productId") as string;
+  db.cart.remove(productId);
+}
+
+removeFromCart.tool = {
+  description: "Remove a product from the shopping cart",
+  inputSchema: z.object({
+    productId: z.string().describe("The product ID to remove"),
+  }),
+};
+```
+
+### Server actions (next-safe-action)
+
+If you use [next-safe-action](https://next-safe-action.dev), you can reuse your existing input schemas.
+Wrap your client with `withMCP` and use the `mcp()` middleware to add descriptions. The input schema is captured automatically from the chain:
+
+```ts
+// app/lib/safe-action.ts
+import { createSafeActionClient } from "next-safe-action";
+import { withMCP } from "webmcp-next";
+
+export const actionClient = withMCP(createSafeActionClient());
+```
+
+```ts
+// app/actions/cart.ts
+"use server";
+import { z } from "zod";
+import { mcp } from "webmcp-next";
+import { actionClient } from "../lib/safe-action";
+
+export const addToCart = actionClient
+  .use(mcp({ description: "Add a product to the shopping cart" }))
+  .inputSchema(z.object({
+    productId: z.string().describe("The product ID to add"),
+    quantity: z.number().describe("Number of items to add"),
+  }))
+  .action(async ({ parsedInput: { productId, quantity } }) => {
+    db.cart.add(productId, quantity);
+  });
+```
+
 ### Server component resources
 
 Server components can expose their data as MCP resources via `.resource` with a `data` function:
@@ -120,58 +198,6 @@ CartServer.resource = {
 ```
 
 The same data function powers both the UI and the agent.
-
-### Server actions (plain functions)
-
-Server actions with `"use server"` are auto-discovered when they have `.tool` metadata:
-
-```ts
-// app/actions/cart.ts
-"use server";
-import { z } from "zod";
-
-export async function removeFromCart(formData: FormData) {
-  const productId = formData.get("productId") as string;
-  db.cart.remove(productId);
-}
-
-removeFromCart.tool = {
-  description: "Remove a product from the shopping cart",
-  inputSchema: z.object({
-    productId: z.string().describe("The product ID to remove"),
-  }),
-};
-```
-
-### Server actions (next-safe-action)
-
-If you use [next-safe-action](https://next-safe-action.dev), wrap your client with `withMCP` and use the `mcp()` middleware to add descriptions. The input schema is captured automatically from the chain:
-
-```ts
-// app/lib/safe-action.ts
-import { createSafeActionClient } from "next-safe-action";
-import { withMCP } from "next-webmcp";
-
-export const actionClient = withMCP(createSafeActionClient());
-```
-
-```ts
-// app/actions/cart.ts
-"use server";
-import { z } from "zod";
-import { mcp } from "next-webmcp";
-import { actionClient } from "../lib/safe-action";
-
-export const addToCart = actionClient
-  .use(mcp({ description: "Add a product to the shopping cart" }))
-  .inputSchema(z.object({
-    productId: z.string().describe("The product ID to add"),
-    quantity: z.number().describe("Number of items to add"),
-  }))
-  .action(async ({ parsedInput: { productId, quantity } }) => {
-    db.cart.add(productId, quantity);
-  });
-```
 
 ## How it works
 
@@ -204,7 +230,7 @@ Your Next.js App
    (same code)          (same code)
 ```
 
-The `withWebMCP()` plugin scans your source files at build time. API routes are auto-discovered — POST handlers become tools, GET handlers become resources. Server actions and component resources are discovered when they have `.tool` or `.resource` metadata. The `<WebMCPScript />` component fetches the manifest and registers everything with `navigator.modelContext`.
+The `withWebMCP()` plugin scans your source files at build time. Everything is auto-discovered: POST handlers and all `"use server"` exports become tools, GET handlers become resources. Optional `.tool` and `.resource` metadata adds descriptions and input schemas. Component resources need `.resource` with a `data` function. The `<WebMCPScript />` component fetches the manifest and registers everything with `navigator.modelContext`.
 
 ## Input schemas
 
@@ -234,24 +260,6 @@ POST.tool = {
 };
 ```
 
-## Path filtering
-
-By default, all routes are exposed. To limit visibility:
-
-```ts
-export default withWebMCP({
-  paths: ["/api/cart/**", "/api/products/**"],
-})(nextConfig);
-```
-
-To exclude specific paths:
-
-```ts
-export default withWebMCP({
-  exclude: ["/api/internal/**"],
-})(nextConfig);
-```
-
 ## `/.well-known/mcp`
 
 The plugin automatically rewrites `/.well-known/mcp` to `/api/mcp/manifest`, so server-side MCP clients can discover your tools and resources at the standard location.
@@ -261,6 +269,11 @@ The plugin automatically rewrites `/.well-known/mcp` to `/api/mcp/manifest`, so 
 ### `withWebMCP(config?)`
 
 Wraps your Next.js config. Scans for tools/resources, generates action imports, adds the `/.well-known/mcp` rewrite.
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `paths` | `string[]` | Glob patterns to include (default: all) |
+| `exclude` | `string[]` | Glob patterns to exclude (default: none) |
 
 ### `GET` / `POST`
 

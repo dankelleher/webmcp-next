@@ -8,12 +8,12 @@
  * ```ts
  * // next-safe-action
  * import { createSafeActionClient } from "next-safe-action";
- * import { withMCP, mcp } from "next-webmcp";
+ * import { withMCP, mcp } from "webmcp-next";
  * export const actionClient = withMCP(createSafeActionClient());
  *
  * // next-zod-route
  * import { createZodRoute } from "next-zod-route";
- * import { withMCP } from "next-webmcp";
+ * import { withMCP } from "webmcp-next";
  * export const route = withMCP(createZodRoute());
  * ```
  *
@@ -37,7 +37,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 /** Marker symbol to identify mcp() middleware */
-const MCP_META = Symbol.for("next-webmcp:meta");
+const MCP_META = Symbol.for("webmcp-next:meta");
 
 /** Methods that define input schemas */
 const SCHEMA_METHODS = new Set(["inputSchema", "body", "query", "params"]);
@@ -150,7 +150,7 @@ const wrapChain = (obj: any, state: ChainState): any =>
  *
  * ```ts
  * import { createSafeActionClient } from "next-safe-action";
- * import { withMCP } from "next-webmcp";
+ * import { withMCP } from "webmcp-next";
  *
  * export const actionClient = withMCP(createSafeActionClient());
  * ```

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { WebMCPScript } from "next-webmcp";
+import { WebMCPScript } from "webmcp-next";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "next-webmcp demo",
+  title: "webmcp-next demo",
   description: "Demo e-commerce app with WebMCP integration",
 };
 
