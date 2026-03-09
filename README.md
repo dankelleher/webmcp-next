@@ -6,9 +6,7 @@ Turn your Next.js app into an AI-agent-ready website in under a minute. Zero ref
 
 https://github.com/user-attachments/assets/6bfd270a-0e1b-4b65-ae26-03e22b81fc04
 
-
-
-<video src="https://dankelleher.github.io/webmcp-next/demo.mp4" width="320" height="240" controls></video>
+https://dankelleher.github.io/webmcp-next/demo.mp4
 
 ## Quick start
 
