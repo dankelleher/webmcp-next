@@ -3,6 +3,5 @@ dist
 .next
 .idea
 *.tsbuildinfo
-pnpm-lock.yaml
 .webmcp-next
 .vercel
