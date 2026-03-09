@@ -2,7 +2,7 @@
 
 Turn your Next.js app into an AI-agent-ready website in under a minute. Your existing API routes and server actions automatically become [WebMCP](https://webmcp.dev) tools and resources — zero refactoring, no extra backend.
 
-<video src="../../demo.mp4" controls width="100%"></video>
+<video src="https://dankelleher.github.io/webmcp-next/demo.mp4" width="320" height="240" controls></video>
 
 ```
 npm install webmcp-next
