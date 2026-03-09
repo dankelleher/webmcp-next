@@ -2,11 +2,8 @@
 
 Turn your Next.js app into an AI-agent-ready website in under a minute. Zero refactoring, no extra backend.
 
-
-
 https://github.com/user-attachments/assets/6bfd270a-0e1b-4b65-ae26-03e22b81fc04
 
-https://dankelleher.github.io/webmcp-next/demo.mp4
 
 ## Quick start
 
