@@ -1,7 +1,18 @@
 {
   "name": "webmcp-next",
   "version": "0.1.0",
-  "description": "Next.js plugin for WebMCP - expose API routes, server actions, and data as MCP tools and resources",
+  "description": "Turn your Next.js app into an AI-agent-ready website — auto-discover routes and server actions as WebMCP tools and resources",
+  "license": "MIT",
+  "author": "Daniel Kelleher",
+  "homepage": "https://github.com/dankelleher/webmcp-next#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dankelleher/webmcp-next.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dankelleher/webmcp-next/issues"
+  },
+  "keywords": ["nextjs", "mcp", "webmcp", "ai", "agent", "tools", "model-context-protocol"],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
